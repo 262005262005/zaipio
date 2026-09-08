@@ -5,6 +5,8 @@
   "description": "ZAIPIO — Multi-Platform E-commerce Seller SaaS",
   "scripts": {
     "dev": "pnpm --parallel --filter './apps/*' dev",
+    "dev:frontend": "pnpm --filter @zaipio/web dev",
+    "dev:backend": "pnpm --filter @zaipio/api dev",
     "dev:web": "pnpm --filter @zaipio/web dev",
     "dev:api": "pnpm --filter @zaipio/api dev",
     "dev:admin": "pnpm --filter @zaipio/admin dev",
