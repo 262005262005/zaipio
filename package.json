@@ -1,0 +1,30 @@
+{
+  "name": "zaipio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZAIPIO — Multi-Platform E-commerce Seller SaaS",
+  "scripts": {
+    "dev": "pnpm --parallel --filter './apps/*' dev",
+    "dev:web": "pnpm --filter @zaipio/web dev",
+    "dev:api": "pnpm --filter @zaipio/api dev",
+    "dev:admin": "pnpm --filter @zaipio/admin dev",
+    "build": "pnpm --recursive build",
+    "lint": "pnpm --recursive lint",
+    "test": "pnpm --recursive test",
+    "db:migrate": "pnpm --filter @zaipio/database migrate",
+    "db:seed": "pnpm --filter @zaipio/database seed",
+    "clean": "pnpm --recursive clean"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0",
+    "prettier": "^3.3.0",
+    "eslint": "^9.0.0",
+    "turbo": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@12.3.4"
+}
