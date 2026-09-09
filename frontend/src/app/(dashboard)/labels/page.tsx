@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { zaipioApi } from '@/lib/api-client'
 
-const LABELS = [
+const MOCK_LABELS = [
   { id: 'L001', orderId: '#AMZ-28471', platform: 'A', platformColor: '#FF9900', sku: 'SKU-0041', product: 'Cotton Kurti - Blue XL',       qty: 2, status: 'Ready',      downloadedAt: '08 Sep 12:00', pages: 1 },
   { id: 'L002', orderId: '#MSH-44712', platform: 'M', platformColor: '#9B1FE8', sku: 'SKU-0021', product: 'Printed Saree - Green',        qty: 1, status: 'Ready',      downloadedAt: '08 Sep 12:00', pages: 1 },
   { id: 'L003', orderId: '#AMZ-28469', platform: 'A', platformColor: '#FF9900', sku: 'SKU-0033', product: 'Yoga Mat - Purple',            qty: 1, status: 'Ready',      downloadedAt: '08 Sep 12:00', pages: 1 },
@@ -22,23 +23,82 @@ const STATUS_COLORS: Record<string, string> = {
 export default function LabelsPage() {
   const [tab, setTab] = useState<'auto' | 'manual'>('auto')
   const [dragOver, setDragOver] = useState(false)
+  const [labels, setLabels] = useState(MOCK_LABELS)
+  const [apiConnected, setApiConnected] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [notification, setNotification] = useState<string | null>(null)
 
-  const ready = LABELS.filter(l => l.status === 'Ready').length
+  useEffect(() => {
+    fetchLabels()
+  }, [])
+
+  const fetchLabels = async () => {
+    try {
+      const res = await zaipioApi.getDailyLabelBatch()
+      if (res.data && res.data.labels) {
+        setLabels(res.data.labels)
+      }
+      setApiConnected(true)
+    } catch {
+      setApiConnected(false)
+    }
+  }
+
+  const handleCropLabels = async () => {
+    setLoading(true)
+    try {
+      await zaipioApi.cropLabelsPdf({ cropRatio: '1x2', sort: 'SKU' })
+      setNotification('PDF Manifest Processed & Cropped Successfully!')
+      setTimeout(() => setNotification(null), 4000)
+    } catch {
+      setNotification('Simulated PDF Label Crop Complete!')
+      setTimeout(() => setNotification(null), 4000)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const ready = labels.filter(l => l.status === 'Ready').length
 
   return (
     <div className="space-y-5">
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed bottom-5 right-5 bg-navy text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 z-50 animate-bounce">
+          <span>✨</span> {notification}
+        </div>
+      )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-navy">Labels</h1>
-          <p className="text-navy/50 text-sm mt-0.5">Auto-downloaded daily at 12:00 PM IST</p>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-black text-navy">Labels Engine</h1>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${apiConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              {apiConnected ? '🟢 Backend API Live (Port 4000)' : '🟡 Offline Standalone'}
+            </span>
+          </div>
+          <p className="text-navy/50 text-sm">Auto-downloaded daily at 12:00 PM IST · Simulated Platform Engine Active</p>
         </div>
         <div className="flex gap-2">
-          <button id="labels-download-all" className="border border-navy/15 text-navy font-semibold text-xs px-4 py-2 rounded-xl hover:bg-navy/5 transition-all">
+          <button 
+            id="labels-download-all" 
+            onClick={() => {
+              setNotification('Downloading batch zip file...')
+              setTimeout(() => setNotification(null), 3000)
+            }}
+            className="border border-navy/15 text-navy font-semibold text-xs px-4 py-2 rounded-xl hover:bg-navy/5 transition-all"
+          >
             📥 Download All
           </button>
-          <button id="labels-print-all" className="bg-navy text-white font-semibold text-xs px-4 py-2 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm">
+          <button 
+            id="labels-print-all" 
+            onClick={() => {
+              setNotification(`Sending ${ready} ready labels to printer queue...`)
+              setTimeout(() => setNotification(null), 3000)
+            }}
+            className="bg-navy text-white font-semibold text-xs px-4 py-2 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm"
+          >
             🖨️ Print All ({ready} ready)
           </button>
         </div>
@@ -52,12 +112,12 @@ export default function LabelsPage() {
           </div>
           <div>
             <p className="text-green-800 font-bold text-base">Today's labels downloaded — 08 Sep at 12:00 PM</p>
-            <p className="text-green-700/70 text-sm mt-0.5">2,614 labels ready · 233 still generating · Next run: Tomorrow 12:00 PM</p>
+            <p className="text-green-700/70 text-sm mt-0.5">2,614 labels ready · 233 generating · Next run: Tomorrow 12:00 PM</p>
           </div>
         </div>
         <div className="text-right hidden sm:block">
           <p className="text-green-800 font-black text-3xl">91.8%</p>
-          <p className="text-green-700/60 text-xs">coverage rate</p>
+          <p className="text-green-700/60 text-xs font-semibold uppercase">Coverage rate</p>
         </div>
       </div>
 
@@ -65,7 +125,7 @@ export default function LabelsPage() {
       <div className="flex gap-1 bg-navy/[0.05] p-1 rounded-xl w-fit">
         {[
           { id: 'auto',   label: '⚡ Auto-Downloaded' },
-          { id: 'manual', label: '📤 Manual Upload'   },
+          { id: 'manual', label: '📤 Manual PDF Crop'   },
         ].map((t) => (
           <button
             key={t.id}
@@ -95,7 +155,7 @@ export default function LabelsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy/[0.05]">
-                {LABELS.map((l) => (
+                {labels.map((l) => (
                   <tr key={l.id} className="hover:bg-navy/[0.02] transition-colors group">
                     <td className="px-5 py-3.5">
                       <input type="checkbox" className="accent-navy" />
@@ -104,7 +164,7 @@ export default function LabelsPage() {
                       <div className="flex items-center gap-2">
                         <div
                           className="w-5 h-5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0"
-                          style={{ background: l.platformColor }}
+                          style={{ background: l.platformColor || '#072946' }}
                         >
                           {l.platform}
                         </div>
@@ -130,7 +190,7 @@ export default function LabelsPage() {
                           Generating
                         </span>
                       ) : (
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${STATUS_COLORS[l.status]}`}>
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${STATUS_COLORS[l.status] || 'bg-slate-100 text-slate-700'}`}>
                           {l.status}
                         </span>
                       )}
@@ -139,9 +199,27 @@ export default function LabelsPage() {
                       <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         {l.status === 'Ready' && (
                           <>
-                            <button id={`label-download-${l.id}`} className="text-[10px] font-semibold text-accent hover:underline">Download</button>
+                            <button 
+                              id={`label-download-${l.id}`} 
+                              onClick={() => {
+                                setNotification(`Downloading label for ${l.orderId}...`)
+                                setTimeout(() => setNotification(null), 3000)
+                              }}
+                              className="text-[10px] font-semibold text-accent hover:underline"
+                            >
+                              Download
+                            </button>
                             <span className="text-navy/20">·</span>
-                            <button id={`label-print-${l.id}`} className="text-[10px] font-semibold text-navy/50 hover:text-navy">Print</button>
+                            <button 
+                              id={`label-print-${l.id}`} 
+                              onClick={() => {
+                                setNotification(`Printing label for ${l.orderId}...`)
+                                setTimeout(() => setNotification(null), 3000)
+                              }}
+                              className="text-[10px] font-semibold text-navy/50 hover:text-navy"
+                            >
+                              Print
+                            </button>
                           </>
                         )}
                       </div>
@@ -163,17 +241,23 @@ export default function LabelsPage() {
             }`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setDragOver(false) }}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); handleCropLabels() }}
             onClick={() => document.getElementById('label-file-input')?.click()}
             id="label-drop-zone"
           >
             <div className="text-4xl mb-3">{dragOver ? '📂' : '📤'}</div>
-            <p className="text-navy font-bold text-base mb-1">Drop your label PDF here</p>
-            <p className="text-navy/50 text-sm mb-4">or click to browse · PDF files only</p>
+            <p className="text-navy font-bold text-base mb-1">Drop your marketplace PDF manifest here</p>
+            <p className="text-navy/50 text-sm mb-4">Supports Amazon, Flipkart, Meesho & Shopify combined PDFs</p>
             <button className="bg-navy text-white font-semibold text-sm px-6 py-2.5 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm">
               Choose PDF File
             </button>
-            <input id="label-file-input" type="file" accept=".pdf" className="hidden" />
+            <input 
+              id="label-file-input" 
+              type="file" 
+              accept=".pdf" 
+              className="hidden" 
+              onChange={() => handleCropLabels()}
+            />
           </div>
 
           {/* Crop settings */}
@@ -181,7 +265,7 @@ export default function LabelsPage() {
             <h3 className="text-navy font-bold text-sm mb-4">Crop & Shortlist Settings</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-navy/60 text-xs font-semibold mb-1.5">Sort by</label>
+                <label className="block text-navy/60 text-xs font-semibold mb-1.5">Sort order</label>
                 <select className="w-full border border-navy/20 rounded-xl px-3 py-2.5 text-navy text-sm outline-none focus:border-accent">
                   <option>SKU (A → Z)</option>
                   <option>Order Quantity (High → Low)</option>
@@ -191,14 +275,25 @@ export default function LabelsPage() {
               <div>
                 <label className="block text-navy/60 text-xs font-semibold mb-1.5">Labels per page</label>
                 <select className="w-full border border-navy/20 rounded-xl px-3 py-2.5 text-navy text-sm outline-none focus:border-accent">
-                  <option>1 per page</option>
+                  <option>1 per page (Thermal 4x6)</option>
                   <option>2 per page</option>
                   <option>4 per page (A4)</option>
                 </select>
               </div>
             </div>
-            <button className="mt-4 bg-navy text-white font-semibold text-sm px-6 py-2.5 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm w-full">
-              Process & Crop Labels
+            <button 
+              disabled={loading}
+              onClick={handleCropLabels}
+              className="mt-4 bg-navy text-white font-semibold text-sm px-6 py-2.5 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm w-full flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Processing & Cropping PDF...
+                </>
+              ) : (
+                'Process & Crop Labels'
+              )}
             </button>
           </div>
         </div>
@@ -206,3 +301,4 @@ export default function LabelsPage() {
     </div>
   )
 }
+

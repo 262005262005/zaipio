@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { zaipioApi } from '@/lib/api-client'
 
-const TRANSACTIONS = [
+const MOCK_TRANSACTIONS = [
   { id: 'PAY-8910', date: '08 Sep 2026', platform: 'Amazon', gross: '₹14,250', commission: '₹1,995', shipping: '₹850', netSettlement: '₹11,405', status: 'Settled' },
   { id: 'PAY-8911', date: '07 Sep 2026', platform: 'Flipkart', gross: '₹22,100', commission: '₹3,094', shipping: '₹1,320', netSettlement: '₹17,686', status: 'Settled' },
   { id: 'PAY-8912', date: '06 Sep 2026', platform: 'Meesho', gross: '₹9,400', commission: '₹470', shipping: '₹750', netSettlement: '₹8,180', status: 'Processing' },
@@ -10,15 +11,55 @@ const TRANSACTIONS = [
 ]
 
 export default function PaymentsPage() {
+  const [transactions, setTransactions] = useState(MOCK_TRANSACTIONS)
+  const [apiConnected, setApiConnected] = useState(false)
+  const [notification, setNotification] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchPayments()
+  }, [])
+
+  const fetchPayments = async () => {
+    try {
+      const res = await zaipioApi.getPaymentReconciliation()
+      if (res.data && res.data.payouts) {
+        setTransactions(res.data.payouts)
+      }
+      setApiConnected(true)
+    } catch {
+      setApiConnected(false)
+    }
+  }
+
+  const handleExportCSV = () => {
+    setNotification('Generating Reconciliation Report CSV...')
+    setTimeout(() => setNotification(null), 4000)
+  }
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed bottom-5 right-5 bg-navy text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 z-50 animate-bounce">
+          <span>✨</span> {notification}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy">Payment Reconciliation & Settlements</h1>
-          <p className="text-navy/60 text-sm">Unified settlement reconciliation across all marketplaces with fee breakdown.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-navy">Payment Reconciliation & Settlements</h1>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${apiConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              {apiConnected ? '🟢 Backend API Live (Port 4000)' : '🟡 Offline Standalone'}
+            </span>
+          </div>
+          <p className="text-navy/60 text-sm">Unified settlement reconciliation across all marketplaces with fee breakdown (Simulated Mode Active).</p>
         </div>
-        <button className="bg-navy hover:bg-navy/90 text-white font-semibold px-4 py-2.5 rounded-xl text-sm shadow-navy-sm transition-all flex items-center gap-2">
+        <button 
+          onClick={handleExportCSV}
+          className="bg-navy hover:bg-navy/90 text-white font-semibold px-4 py-2.5 rounded-xl text-sm shadow-navy-sm transition-all flex items-center gap-2"
+        >
           <span>📥</span> Export Reconciliation CSV
         </button>
       </div>
@@ -66,7 +107,7 @@ export default function PaymentsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-navy/5">
-            {TRANSACTIONS.map((t) => (
+            {transactions.map((t) => (
               <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="p-4">
                   <p className="font-bold text-navy">{t.id}</p>
@@ -92,3 +133,4 @@ export default function PaymentsPage() {
     </div>
   )
 }
+

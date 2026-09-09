@@ -1,15 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-
-const ALL_ORDERS = [
-  { id: '#AMZ-28471', platform: 'A', platformName: 'Amazon',   platformColor: '#FF9900', sku: 'SKU-0041', product: 'Cotton Kurti - Blue XL',      qty: 2, amount: 1198, status: 'Label Ready', date: '08 Sep 12:34', customer: 'Aarav Sharma', city: 'Mumbai, MH', fee: 167, netProfit: 450 },
-  { id: '#FLK-19284', platform: 'F', platformName: 'Flipkart', platformColor: '#2874F0', sku: 'SKU-0088', product: 'Steel Water Bottle 1L',        qty: 1, amount: 549,  status: 'Processing',  date: '08 Sep 12:28', customer: 'Priya Patel', city: 'Ahmedabad, GJ', fee: 76, netProfit: 210 },
-  { id: '#MSH-44712', platform: 'M', platformName: 'Meesho',   platformColor: '#9B1FE8', sku: 'SKU-0021', product: 'Printed Saree - Green',        qty: 1, amount: 899,  status: 'Label Ready', date: '08 Sep 12:10', customer: 'Vikram Singh', city: 'Jaipur, RJ', fee: 45, netProfit: 390 },
-  { id: '#SHO-77123', platform: 'S', platformName: 'Shopify',  platformColor: '#96BF48', sku: 'SKU-0064', product: 'Ceramic Coffee Mug',           qty: 3, amount: 1047, status: 'Shipped',     date: '08 Sep 11:55', customer: 'Ananya Roy', city: 'Kolkata, WB', fee: 31, netProfit: 520 },
-  { id: '#AMZ-28469', platform: 'A', platformName: 'Amazon',   platformColor: '#FF9900', sku: 'SKU-0033', product: 'Yoga Mat - Purple',            qty: 1, amount: 799,  status: 'Label Ready', date: '08 Sep 11:42', customer: 'Rajesh Kumar', city: 'Delhi, DL', fee: 112, netProfit: 290 },
-  { id: '#FLK-19280', platform: 'F', platformName: 'Flipkart', platformColor: '#2874F0', sku: 'SKU-0055', product: 'LED Desk Lamp',                qty: 1, amount: 1299, status: 'RTO',         date: '08 Sep 11:30', customer: 'Neha Gupta', city: 'Bengaluru, KA', fee: 182, netProfit: -120 },
-]
+import { useState, useEffect } from 'react'
+import { zaipioApi } from '@/lib/api-client'
 
 const STATUS_COLORS: Record<string, string> = {
   'Label Ready': 'text-green-700 bg-green-100',
@@ -24,13 +16,34 @@ const STATUSES = ['All', 'Label Ready', 'Processing', 'Shipped', 'Delivered', 'R
 const PLATFORMS = ['All', 'Amazon', 'Flipkart', 'Meesho', 'Shopify']
 
 export default function OrdersPage() {
-  const [statusFilter, setStatusFilter]   = useState('All')
+  const [orders, setOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [apiConnected, setApiConnected] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('All')
   const [platformFilter, setPlatformFilter] = useState('All')
   const [search, setSearch] = useState('')
-  const [selectedOrder, setSelectedOrder] = useState<typeof ALL_ORDERS[0] | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
   const [density, setDensity] = useState<'compact' | 'comfortable'>('comfortable')
 
-  const filtered = ALL_ORDERS.filter((o) => {
+  const fetchOrders = async () => {
+    setLoading(true)
+    try {
+      const res = await zaipioApi.getOrders()
+      setOrders(res.data)
+      setApiConnected(true)
+    } catch (err) {
+      console.warn('Backend API connection fallback, using local state')
+      setApiConnected(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchOrders()
+  }, [])
+
+  const filtered = orders.filter((o) => {
     const matchStatus   = statusFilter === 'All'   || o.status === statusFilter
     const matchPlatform = platformFilter === 'All' || o.platformName === platformFilter
     const matchSearch   = !search || o.id.toLowerCase().includes(search.toLowerCase())
@@ -40,12 +53,20 @@ export default function OrdersPage() {
   })
 
   return (
-    <div className="space-y-5 relative">
+    <div className="space-y-5 relative text-left">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-navy">Unified Orders</h1>
-          <p className="text-navy/50 text-sm mt-0.5">{ALL_ORDERS.length} orders today across all platforms</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-black text-navy">Unified Orders</h1>
+            {apiConnected && (
+              <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold bg-green-100 text-green-700 px-2.5 py-1 rounded-full border border-green-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Backend API Connected (Port 4000)
+              </span>
+            )}
+          </div>
+          <p className="text-navy/50 text-sm mt-0.5">{orders.length} orders today across all platforms</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Density Switcher */}
@@ -65,8 +86,11 @@ export default function OrdersPage() {
               ☵ Compact
             </button>
           </div>
-          <button className="bg-navy text-white font-semibold text-xs px-4 py-2.5 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm">
-            🏷️ Print Selected Labels
+          <button
+            onClick={() => fetchOrders()}
+            className="bg-navy text-white font-semibold text-xs px-4 py-2.5 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm flex items-center gap-1.5"
+          >
+            <span>🔄</span> Sync API
           </button>
         </div>
       </div>
@@ -74,11 +98,11 @@ export default function OrdersPage() {
       {/* Summary bar */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: 'Total Orders', value: ALL_ORDERS.length, color: 'text-navy' },
-          { label: 'Label Ready',  value: ALL_ORDERS.filter(o => o.status === 'Label Ready').length, color: 'text-green-600' },
-          { label: 'Processing',   value: ALL_ORDERS.filter(o => o.status === 'Processing').length, color: 'text-blue-600' },
-          { label: 'Shipped',      value: ALL_ORDERS.filter(o => o.status === 'Shipped').length, color: 'text-purple-600' },
-          { label: 'RTO Losses',   value: ALL_ORDERS.filter(o => o.status === 'RTO').length, color: 'text-red-600' },
+          { label: 'Total Orders', value: orders.length, color: 'text-navy' },
+          { label: 'Label Ready',  value: orders.filter(o => o.status === 'Label Ready').length, color: 'text-green-600' },
+          { label: 'Processing',   value: orders.filter(o => o.status === 'Processing').length, color: 'text-blue-600' },
+          { label: 'Shipped',      value: orders.filter(o => o.status === 'Shipped').length, color: 'text-purple-600' },
+          { label: 'RTO Losses',   value: orders.filter(o => o.status === 'RTO').length, color: 'text-red-600' },
         ].map((s) => (
           <div key={s.label} className="bg-white border border-navy/10 rounded-xl p-3.5 shadow-sm">
             <p className={`font-black text-2xl ${s.color}`}>{s.value}</p>
@@ -121,8 +145,8 @@ export default function OrdersPage() {
             <thead>
               <tr className="bg-slate-50 text-navy/45 text-[11px] font-bold uppercase tracking-wider border-b border-navy/10">
                 <th className="p-4"><input type="checkbox" className="accent-navy" /></th>
-                <th className="p-4">Order ID & Channel</th>
-                <th className="p-4">Customer & City</th>
+                <th className="p-4">Order ID &amp; Channel</th>
+                <th className="p-4">Customer &amp; City</th>
                 <th className="p-4">Product Details</th>
                 <th className="p-4">Amount</th>
                 <th className="p-4">Net Profit</th>
@@ -146,7 +170,7 @@ export default function OrdersPage() {
                     <div className="flex items-center gap-2">
                       <div
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm"
-                        style={{ background: o.platformColor }}
+                        style={{ background: o.platformColor || '#0EA5E9' }}
                       >
                         {o.platform}
                       </div>
@@ -164,7 +188,7 @@ export default function OrdersPage() {
                     <p className="font-medium text-navy text-xs truncate max-w-[200px]">{o.product}</p>
                     <p className="text-[10px] font-mono text-navy/40">{o.sku} • Qty: {o.qty}</p>
                   </td>
-                  <td className="p-4 font-bold text-navy text-xs">₹{o.amount.toLocaleString('en-IN')}</td>
+                  <td className="p-4 font-bold text-navy text-xs">₹{o.amount?.toLocaleString('en-IN')}</td>
                   <td className="p-4 font-bold text-xs">
                     <span className={o.netProfit > 0 ? 'text-emerald-600' : 'text-red-500'}>
                       {o.netProfit > 0 ? `+₹${o.netProfit}` : `-₹${Math.abs(o.netProfit)}`}
@@ -189,7 +213,7 @@ export default function OrdersPage() {
       {selectedOrder && (
         <div className="fixed inset-0 z-50 bg-navy/40 backdrop-blur-sm flex justify-end" onClick={() => setSelectedOrder(null)}>
           <div
-            className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-slide-right"
+            className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-slide-right text-left"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drawer Header */}
@@ -198,7 +222,7 @@ export default function OrdersPage() {
                 <div className="flex items-center gap-2">
                   <span
                     className="w-5 h-5 rounded flex items-center justify-center text-white font-black text-[10px]"
-                    style={{ background: selectedOrder.platformColor }}
+                    style={{ background: selectedOrder.platformColor || '#0EA5E9' }}
                   >
                     {selectedOrder.platform}
                   </span>
@@ -238,30 +262,10 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            {/* Profit Waterfall */}
-            <div className="space-y-2 pt-2 border-t border-navy/10">
-              <p className="text-xs font-bold text-navy uppercase tracking-wider">Per-Order Unit Economics</p>
-              <div className="space-y-1.5 text-xs text-navy/70">
-                <div className="flex justify-between"><span>Selling Price</span><span className="font-semibold text-navy">₹{selectedOrder.amount}</span></div>
-                <div className="flex justify-between"><span>Platform Fee & GST</span><span className="text-red-500">-₹{selectedOrder.fee}</span></div>
-                <div className="flex justify-between"><span>Shipping Charge</span><span className="text-red-500">-₹85</span></div>
-                <div className="flex justify-between"><span>Estimated COGS</span><span className="text-slate-600">-₹{selectedOrder.amount - selectedOrder.fee - 85 - selectedOrder.netProfit}</span></div>
-                <div className="flex justify-between font-bold text-sm text-navy pt-2 border-t border-navy/10">
-                  <span>Net Profit Realized</span>
-                  <span className={selectedOrder.netProfit > 0 ? 'text-emerald-600 font-black' : 'text-red-500 font-black'}>
-                    +₹{selectedOrder.netProfit}
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {/* Action Buttons */}
             <div className="pt-4 border-t border-navy/10 space-y-2">
               <button className="w-full bg-accent hover:bg-accent-hover text-white font-bold py-2.5 rounded-xl shadow-accent-sm text-sm transition-all flex items-center justify-center gap-2">
                 <span>🏷️</span> Download Shipping Label PDF
-              </button>
-              <button className="w-full bg-navy/5 hover:bg-navy/10 text-navy font-semibold py-2.5 rounded-xl text-sm transition-all">
-                Mark as Shipped
               </button>
             </div>
           </div>
