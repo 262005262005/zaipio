@@ -16,6 +16,10 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@zaipio/shared": ["../../packages/shared/src"],
+      "@zaipio/shared/*": ["../../packages/shared/src/*"]
+    }
   }
 }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { LoginInput, SignupInput, LabelCropInput } from '@zaipio/shared';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -38,8 +39,8 @@ apiClient.interceptors.response.use(
 // API Service Endpoint Callers
 export const zaipioApi = {
   // Auth
-  login: (credentials: { email: string; password?: string }) => apiClient.post('/auth/login', credentials),
-  signup: (userData: any) => apiClient.post('/auth/signup', userData),
+  login: (credentials: LoginInput) => apiClient.post('/auth/login', credentials),
+  signup: (userData: SignupInput) => apiClient.post('/auth/signup', userData),
   getProfile: () => apiClient.get('/auth/me'),
 
   // Orders
@@ -49,7 +50,7 @@ export const zaipioApi = {
 
   // Labels
   getDailyLabelBatch: () => apiClient.get('/labels/daily-batch'),
-  cropLabelsPdf: (pdfData: any) => apiClient.post('/labels/crop', pdfData),
+  cropLabelsPdf: (pdfData?: LabelCropInput) => apiClient.post('/labels/crop', pdfData),
 
   // Inventory
   getInventory: () => apiClient.get('/inventory'),
@@ -58,3 +59,4 @@ export const zaipioApi = {
   // Payments
   getPaymentReconciliation: () => apiClient.get('/payments/reconcile'),
 };
+
