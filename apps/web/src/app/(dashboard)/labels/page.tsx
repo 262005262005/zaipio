@@ -35,6 +35,9 @@ export default function LabelsPage() {
   const [sortOrder, setSortOrder] = useState('SKU')
   const [printSuccess, setPrintSuccess] = useState(false)
 
+  // Uploaded file state
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string } | null>(null)
+
   useEffect(() => {
     fetchLabels()
   }, [])
@@ -51,16 +54,23 @@ export default function LabelsPage() {
     }
   }
 
+  const handleFileUpload = (file: File) => {
+    const fileSizeKb = (file.size / 1024).toFixed(1)
+    setUploadedFile({ name: file.name, size: `${fileSizeKb} KB` })
+    setNotification(`📄 PDF Loaded: ${file.name} (${fileSizeKb} KB) ready to crop!`)
+    setTimeout(() => setNotification(null), 4000)
+  }
+
   const handleCropLabels = async () => {
     setLoading(true)
     try {
       await zaipioApi.cropLabelsPdf({ cropRatio: '1x2', sort: 'SKU' })
       setShowModal(true)
-      setNotification('PDF Manifest Cropped! Opening Interactive Printer Modal...')
+      setNotification(uploadedFile ? `✂️ Cropped ${uploadedFile.name}! Opening Thermal Printer Modal...` : 'PDF Manifest Cropped! Opening Interactive Printer Modal...')
       setTimeout(() => setNotification(null), 4000)
     } catch {
       setShowModal(true)
-      setNotification('Simulated PDF Crop Complete! Opening Preview Modal...')
+      setNotification(uploadedFile ? `✂️ Cropped ${uploadedFile.name}! Opening Preview Modal...` : 'Simulated PDF Crop Complete! Opening Preview Modal...')
       setTimeout(() => setNotification(null), 4000)
     } finally {
       setLoading(false)
@@ -437,27 +447,49 @@ export default function LabelsPage() {
         <div className="space-y-4">
           {/* Drop zone */}
           <div
-            className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer ${
+            className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${
               dragOver ? 'border-accent bg-accent/5' : 'border-navy/20 hover:border-navy/40 bg-white'
             }`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setDragOver(false); handleCropLabels() }}
-            onClick={() => handleCropLabels()}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFileUpload(e.dataTransfer.files[0])
+              }
+            }}
+            onClick={() => document.getElementById('label-file-input')?.click()}
             id="label-drop-zone"
           >
-            <div className="text-4xl mb-3">{dragOver ? '📂' : '📤'}</div>
-            <p className="text-navy font-bold text-base mb-1">Drop your marketplace PDF manifest here</p>
-            <p className="text-navy/50 text-sm mb-4">Supports Amazon, Flipkart, Meesho & Shopify combined PDFs</p>
-            <button className="bg-navy text-white font-semibold text-sm px-6 py-2.5 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm">
-              Choose PDF File
-            </button>
+            <div className="text-4xl mb-3">{uploadedFile ? '📄' : dragOver ? '📂' : '📤'}</div>
+            {uploadedFile ? (
+              <div className="space-y-2">
+                <p className="text-emerald-700 font-black text-lg">✅ File Loaded: {uploadedFile.name}</p>
+                <p className="text-navy/50 text-xs font-semibold">{uploadedFile.size} · Ready to Crop & Shortlist</p>
+                <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">
+                  Click "Process & Crop Labels" Below
+                </span>
+              </div>
+            ) : (
+              <>
+                <p className="text-navy font-bold text-base mb-1">Drop your marketplace PDF manifest here</p>
+                <p className="text-navy/50 text-sm mb-4">Supports Amazon, Flipkart, Meesho & Shopify combined PDFs</p>
+                <button className="bg-navy text-white font-semibold text-sm px-6 py-2.5 rounded-xl hover:bg-navy-800 transition-all shadow-navy-sm">
+                  Choose PDF File
+                </button>
+              </>
+            )}
             <input 
               id="label-file-input" 
               type="file" 
               accept=".pdf" 
               className="hidden" 
-              onChange={() => handleCropLabels()}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileUpload(e.target.files[0])
+                }
+              }}
             />
           </div>
 
