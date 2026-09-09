@@ -58,5 +58,10 @@ export const zaipioApi = {
 
   // Payments
   getPaymentReconciliation: () => apiClient.get('/payments/reconcile'),
+
+  // Returns & Claims
+  getReturns: () => apiClient.get('/returns'),
+  submitClaim: (claimData: { returnId: string; reason: string; videoUrl?: string }) => apiClient.post('/returns/claims/submit', claimData),
+  getClaims: () => apiClient.get('/returns/claims'),
 };
 
